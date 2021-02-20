@@ -14,6 +14,7 @@ from tensorflow.core.protobuf import rewriter_config_pb2
 import model, sample, encoder
 from load_dataset import load_dataset, Sampler
 from accumulate import AccumulatingOptimizer
+from audio_dataset import create_chunks
 import memory_saving_gradients
 
 CHECKPOINT_DIR = 'checkpoint'
@@ -71,7 +72,6 @@ def randomize(context, hparams, p):
 
 def main():
     args = parser.parse_args()
-    enc = encoder.get_encoder(args.model_name)
     hparams = model.default_hparams()
     with open(os.path.join('models', args.model_name, 'hparams.json')) as f:
         hparams.override_from_dict(json.load(f))
@@ -171,7 +171,7 @@ def main():
         saver.restore(sess, ckpt)
 
         print('Loading dataset...')
-        chunks = load_dataset(enc, args.dataset, args.combine, encoding=args.encoding)
+        chunks = create_chunks(args.dataset)
         data_sampler = Sampler(chunks)
         if args.val_every > 0:
             if args.val_dataset:
@@ -219,7 +219,7 @@ def main():
                     tf_sample,
                     feed_dict={context: args.batch_size * [context_tokens]})
                 for i in range(min(args.sample_num - index, args.batch_size)):
-                    text = enc.decode(out[i])
+                    text = mu_law_expansion(out[i], 256)
                     text = '======== SAMPLE {} ========\n{}\n'.format(
                         index + 1, text)
                     all_text.append(text)
